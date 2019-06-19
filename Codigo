@@ -1,0 +1,158 @@
+double r2g(double radiano)
+{
+	return radiano * (180.0/M_PI);
+}
+	std::size_t found,found2,found3,found4, found5;
+	std::ifstream file("data.txt");
+	std::map<std::pair<float, float>, std::tuple<float, float, float>> myMap;
+	if (file.is_open()) {
+		std::string line;
+		while (getline(file, line)) {
+			// using printf() in all tests for consistency
+			line += "\n";
+			if (line == "alpha|beta|AngleservoA|AngleservoB|AngleservoC\n") 
+				std::cout << line <<std::endl;
+			else {
+				found = line.find("#");
+				found2 = line.find("|");
+				found3 = line.find("|", found);
+				found4 = line.find("|", found3+1);
+				found5 = line.find("\n");
+				float alpha = std::stof(line.substr(0, found2));
+				float beta = std::stof(line.substr(found2 + 1, found));
+				float AngleservoA = std::stof(line.substr(found + 1, found3));
+				float AngleservoB = std::stof(line.substr(found3 + 1, found4));
+				float AngleservoC = std::stof(line.substr(found4 + 1, found5));
+				myMap[std::make_pair(alpha, beta)] = std::make_tuple(AngleservoA, AngleservoB, AngleservoC);
+
+			}
+
+
+
+		}
+		file.close();
+	}
+	
+	auto it = myMap.find(std::make_pair(1.8, 0));
+	std::cout << std::get<0>(it->second) << " " << std::get<1>(it->second) << " " << std::get<2>(it->second);
+
+void pidControl(int ballPosX, int ballPosY, int prevBallPosX, int prevBallPosY, int consigneX, int consigneY)
+{
+	pidX = kp * (consigneX - ballPosX) + ki * sommeErreurX + kd * ((prevBallPosX - ballPosX) / 0.5);
+	pidY = kp * (consigneY - ballPosY) + ki * sommeErreurY + kd * ((prevBallPosY - ballPosY) / 0.5);
+
+	pidX = round(pidX*10000)/10000;
+	pidY = round(pidY*10000)/10000;
+	if(pidX == 0 && pidY == 0)
+	{
+		alpha = 0;
+		beta = 0;
+	}
+
+	else if(pidX != 0 && sqrt(pidX*pidX + pidY*pidY) < 1)
+	{
+		beta = atan(pidY/pidX);
+		alpha = asin(sqrt(pidX*pidX + pidY*pidY));
+		beta = r2g(beta);
+		alpha = r2g(alpha);
+		if(pidX < 0 && pidY >= 0)
+		{
+			beta = abs(beta);
+		}
+
+		else if(pidX > 0 && pidY >= 0)
+		{
+			beta = 180 - abs(beta);
+		}
+	
+		else if(pidX > 0 && pidY <= 0)
+		{
+			beta = 180 + abs(beta);
+		} 
+
+		else if(pidX < 0 && pidY <= 0)
+		{
+			beta = 360-abs(beta);
+		}    
+	}	    
+
+	else if(pidX == 0 && sqrt(pidX*pidX + pidY*pidY) < 1)
+	{
+		if(pidY > 0)
+		{
+			beta = 90;
+			alpha = asin(sqrt(pidX*pidX + pidY*pidY));
+		}  
+
+		else if(pidY < 0)
+		{
+			beta = 270;
+			alpha = asin(sqrt(pidX*pidX + pidY*pidY));
+		}  
+		
+		alpha = r2g(alpha);
+	}
+
+	else if(pidX != 0 && sqrt(pidX*pidX + pidY*pidY) > 1)
+	{
+		beta = r2g(atan(pidY/pidX));
+		alpha = 35;
+		if(pidX < 0 && pidY >= 0)
+		{
+			beta = abs(beta);
+		}
+
+		else if(pidX > 0 && pidY >= 0)
+		{
+			beta = 180-abs(beta);
+		}
+
+		else if(pidX > 0 && pidY <= 0)
+		{
+			beta = 180+abs(beta);
+		}
+
+		else if(pidX < 0 && pidY <= 0)
+		{
+			beta = 360-abs(beta);
+		}       
+	}
+
+	else if(pidX == 0 && sqrt(pidX*pidX + pidY*pidY) > 1)
+	{
+		alpha = 35;
+		if(pidY > 0)
+		{
+			beta = 90;
+		}
+
+		else if(pidY < 0)
+		{
+			beta = 270;
+		}
+	}
+
+	if(alpha > 35)
+	{
+		alpha = 35;
+	}  
+
+	alpha = prevAlpha * omega + (1-omega) * alpha;
+	beta = prevBeta * omega + (1-omega) * beta;
+
+	//alpha = round(round(alpha / 0.2) * 0.2, -int(floor(log10(0.2))));
+	//beta = round(round(beta / 0.2) * 0.2, -int(floor(log10(0.2))));
+	alpha = round((round(alpha / 0.2) * 0.2)*10)/10;
+	beta = round((round(beta / 0.2) * 0.2)*10)/10;
+
+	printf("%f		%f\n",alpha, beta);
+
+	//if alpha <= 35 && beta <= 360 && arduinoIsConnected == True && startBalanceBall == True:
+       auto it = myMap.find(std::make_pair(alpha, beta));
+	//    ser.write(std::get<0>(it->second) << " " << std::get<1>(it->second) << " " << std::get<2>(it->second))
+
+
+
+	sommeErreurX += (consigneX-ballPosX);
+	sommeErreurY += (consigneY-ballPosY);
+}
